@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo de Álbuns de Fotos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F5F2ED; --surface: #FFFFFF; --surface2: #EDE9E2;
+    --text: #1A1713; --text2: #6B6559; --text3: #A09890;
+    --accent: #2D5016; --accent-light: #E8F0DF; --accent-mid: #5A8A30;
+    --border: rgba(26,23,19,0.1); --border2: rgba(26,23,19,0.18);
+    --mark-bg: #F7C948; --mark-text: #3D2E00;
+    --badge-bg: #DDE8D0; --badge-text: #1E3D09;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .top-bar { background: var(--accent); padding: 18px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  .top-bar-title { font-family: 'DM Serif Display', serif; font-size: 20px; color: #fff; }
+  .top-bar-sub { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+  .container { max-width: 680px; margin: 0 auto; padding: 24px 16px 60px; }
+  .loading-state { text-align: center; padding: 60px 20px; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--accent-light); border-top-color: var(--accent-mid); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-state p { font-size: 14px; color: var(--text2); }
+  .error-state { background: #FEF2F2; border: 1px solid #FECACA; border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; }
+  .error-state h3 { font-size: 15px; color: #991B1B; margin-bottom: 6px; }
+  .error-state p { font-size: 13px; color: #7F1D1D; line-height: 1.5; }
+  .btn-retry { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; background: #991B1B; color: #fff; border: none; border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .stat-value { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--text); }
+  .sync-bar { display: flex; align-items: center; justify-content: space-between; background: var(--accent-light); border: 1px solid rgba(90,138,48,0.25); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 20px; font-size: 13px; }
+  .sync-info { display: flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 500; }
+  .btn-sync { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text2); font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 4px; }
+  .btn-sync:hover { background: var(--surface2); }
+  .btn-sync.spinning svg { animation: spin 0.8s linear infinite; }
+  .search-wrap { position: relative; margin-bottom: 10px; }
+  .search-wrap svg.ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); }
+  .search-wrap input { width: 100%; padding: 11px 40px 11px 38px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .search-wrap input:focus { border-color: var(--accent-mid); }
+  .search-wrap input::placeholder { color: var(--text3); }
+  .btn-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text3); padding: 4px; }
+  .btn-clear:hover { color: var(--text); }
+  .filters { display: flex; gap: 10px; margin-bottom: 20px; }
+  .filters select { flex: 1; padding: 9px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); outline: none; cursor: pointer; }
+  .filters select:focus { border-color: var(--accent-mid); }
+  .results-label { font-size: 12px; color: var(--text3); margin-bottom: 12px; }
+  .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; transition: box-shadow 0.15s, border-color 0.15s; }
+  .result-card:hover { border-color: var(--border2); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .album-badge { min-width: 52px; height: 52px; background: var(--badge-bg); border-radius: var(--radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+  .badge-label { font-size: 9px; font-weight: 500; color: var(--badge-text); text-transform: uppercase; letter-spacing: 0.06em; }
+  .badge-num { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--accent); line-height: 1.1; }
+  .result-info { flex: 1; min-width: 0; }
+  .result-evento { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.45; margin-bottom: 5px; }
+  .result-meta { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
+  mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+  .empty { text-align: center; padding: 40px 20px; color: var(--text2); }
+  .empty svg { margin-bottom: 12px; opacity: 0.4; }
+  .empty p { font-size: 14px; }
+  .hidden { display: none !important; }
+  @media (max-width: 480px) {
+    .top-bar { padding: 14px 16px; }
+    .top-bar-title { font-size: 17px; }
+    .stat-value { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+  <div>
+    <div class="top-bar-title">Catálogo de Álbuns</div>
+    <div class="top-bar-sub">Sincronizado com Google Sheets</div>
+  </div>
+</div>
+<div class="container">
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <p>Carregando dados da planilha...</p>
+  </div>
+  <div class="error-state hidden" id="errorState">
+    <h3>Não foi possível carregar os dados</h3>
+    <p id="errorMsg">Verifique se a planilha está compartilhada como "Qualquer pessoa com o link".</p>
+    <button class="btn-retry" onclick="loadData()">↺ Tentar novamente</button>
+  </div>
+  <div id="mainSection" class="hidden">
+    <div class="sync-bar">
+      <div class="sync-info">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="syncInfo">Dados carregados</span>
+      </div>
+      <button class="btn-sync" id="syncBtn" onclick="loadData()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Atualizar
+      </button>
+    </div>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Eventos</div><div class="stat-value" id="totalEventos">0</div></div>
+      <div class="stat-card"><div class="stat-label">Álbuns</div><div class="stat-value" id="totalAlbuns">0</div></div>
+    </div>
+    <div class="search-wrap">
+      <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar por nome do evento..." oninput="filterData()" />
+      <button class="btn-clear" onclick="clearSearch()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="filters">
+      <select id="filterAlbum" onchange="filterData()"><option value="">Todos os álbuns</option></select>
+      <select id="filterAno" onchange="filterData()"><option value="">Todos os anos</option></select>
+    </div>
+    <div class="results-label" id="resultsLabel"></div>
+    <div id="resultsList"></div>
+  </div>
+</div>
+<script>
+const SHEET_ID = '1T-kw6mApOg-diXVWOR41s0hx1X2gv9pU';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=Plan1';
+let DATA = [];
+
+async function loadData() {
+  document.getElementById('loadingState').classList.remove('hidden');
+  document.getElementById('errorState').classList.add('hidden');
+  document.getElementById('mainSection').classList.add('hidden');
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('spinning');
+  try {
+    const res = await fetch(SHEET_URL + '&t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    parseCSV(csv);
+  } catch(err) {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorState').classList.remove('hidden');
+    document.getElementById('errorMsg').textContent = 'Erro: ' + err.message + '. Verifique se a planilha está compartilhada como "Qualquer pessoa com o link".';
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+function parseCSV(csv) {
+  const lines = csv.trim().split('\n');
+  if (lines.length < 2) { showError('Planilha vazia ou sem dados.'); return; }
+  const header = parseRow(lines[0]).map(h => h.toLowerCase());
+  const albumIdx = header.findIndex(h => /album|álbum/.test(h));
+  const eventoIdx = header.findIndex(h => /foto|evento|descri/.test(h));
+  const anoIdx = header.findIndex(h => /ano|year/.test(h));
+  if (albumIdx === -1 || eventoIdx === -1) { showError('Colunas não encontradas. Verifique se a planilha tem: Album, Foto/Evento, Ano.'); return; }
+  DATA = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseRow(lines[i]);
+    if (!cols[eventoIdx] || !cols[eventoIdx].trim()) continue;
+    DATA.push({ album: cols[albumIdx]||'', evento: cols[eventoIdx]||'', ano: anoIdx>=0 ? cols[anoIdx]||'' : '' });
+  }
+  if (DATA.length === 0) { showError('Nenhum dado encontrado na planilha.'); return; }
+  const now = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('syncInfo').textContent = DATA.length + ' eventos · atualizado às ' + now;
+  buildFilters();
+  filterData();
+  document.getElementById('loadingState').classList.add('hidden');
+  document.getElementById('mainSection').classList.remove('hidden');
+}
+
+function parseRow(line) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function showError(msg) {
+  document.getElementById('loadingState').classList.add('hidden');
+  document.getElementById('errorState').classList.remove('hidden');
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+function buildFilters() {
+  const albuns = [...new Set(DATA.map(d => d.album))].sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric:true}));
+  const anos = [...new Set(DATA.map(d => d.ano).filter(Boolean))].sort((a,b) => a-b);
+  const selA = document.getElementById('filterAlbum');
+  const selY = document.getElementById('filterAno');
+  selA.innerHTML = '<option value="">Todos os álbuns</option>';
+  selY.innerHTML = '<option value="">Todos os anos</option>';
+  albuns.forEach(a => { const o = document.createElement('option'); o.value=a; o.textContent='Álbum '+a; selA.appendChild(o); });
+  anos.forEach(y => { const o = document.createElement('option'); o.value=y; o.textContent=y; selY.appendChild(o); });
+  document.getElementById('totalEventos').textContent = DATA.length;
+  document.getElementById('totalAlbuns').textContent = albuns.length;
+}
+
+function highlight(text, q) {
+  if (!q) return text;
+  return text.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'), '<mark>$1</mark>');
+}
+
+function filterData() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const album = document.getElementById('filterAlbum').value;
+  const ano = document.getElementById('filterAno').value;
+  const results = DATA.filter(d =>
+    (!q || d.evento.toLowerCase().includes(q)) &&
+    (!album || String(d.album)===String(album)) &&
+    (!ano || String(d.ano)===String(ano))
+  );
+  const list = document.getElementById('resultsList');
+  document.getElementById('resultsLabel').textContent = (q||album||ano) ? results.length+' resultado(s) encontrado(s)' : '';
+  if (results.length === 0) {
+    list.innerHTML = '<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg><p>Nenhum evento encontrado.<br>Tente outros termos.</p></div>';
+    return;
+  }
+  list.innerHTML = results.map(d => '<div class="result-card"><div class="album-badge"><span class="badge-label">álbum</span><span class="badge-num">'+d.album+'</span></div><div class="result-info"><div class="result-evento">'+highlight(d.evento,q)+'</div><div class="result-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+(d.ano||'Ano não informado')+'</div></div></div>').join('');
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value='';
+  document.getElementById('filterAlbum').value='';
+  document.getElementById('filterAno').value='';
+  filterData();
+}
+
+loadData();
+</script>
+</body>
+</html>
